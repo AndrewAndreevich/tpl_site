@@ -5,7 +5,7 @@ window.addEventListener('load', init, false);
 function init() {
   createWorld();
   createPrimitive();
-  createGUI();
+  //createGUI();
   //---
   animation();
 }
