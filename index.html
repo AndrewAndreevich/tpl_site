@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+
   <title>Perlin noise | Fireball explosion</title>
   <meta charset="utf-8">
   <script src="script.js"></script>
@@ -8,22 +9,54 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.0.0/js/bootstrap.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/1.20.3/TweenMax.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.5/dat.gui.min.js"></script>
-  
-  <link rel="stylesheet" href="style.css">
-</head>
-<body>
+    <style>
+    /* Paste your style.css contents below this line */
 
+    /* Example styles, replace with your actual style.css content */
+    body {
+      background: #111;
+      color: #fff;
+      font-family: 'Segoe UI', Arial, sans-serif;
+    }
+    .header {
+      background: rgba(0,0,0,0.8);
+      padding: 1rem;
+      border-bottom: 1px solid #222;
+    }
+    .disable-selection {
+      user-select: none;
+    }
+    #container {
+      width: 100vw;
+      height: 100vh;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 0;
+    }
+    h1 {
+      font-size: 2rem;
+      margin: 0;
+    }
+    .small {
+      font-size: 0.9rem;
+      color: #ff9800;
+    }
+
+    /* End of example styles */
+  </style>
+</head>
+
+<body>
   <div class="container-fluid fixed-top header disable-selection">
     <div class="row">
       <div class="col">
         <h1>
           <strong>Perlin Noise</strong>
         </h1>
-        <!--
         <p class="small" href="#" role="button">
           <strong>708.588 POINTS</strong>
         </p>
-        -->
       </div>
     </div>
   </div>
