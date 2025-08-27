@@ -104,7 +104,7 @@
     // ====== CONFIG ======
     const frameCount = 180; // кол-во кадров в последовательности
     const frameW = 1920, frameH = 800; // фактический размер изображений
-    const framePath = i => `frames/frame_${String(i).padStart(4,'0')}.jpg`; // измените под вашу структуру
+    const framePath = i => `frames/frame_${String(i).padStart(2,'0')}.jpg`; // измените под вашу структуру
 
     const wheelStep = 1;          // шаг индекса от колеса
     const dragSensitivity = 0.35; // px -> индекс/100 (будет нормировано ниже)
