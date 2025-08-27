@@ -1,557 +1,227 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Topology | Experimental Marketing Agency</title>
 
-  <title>Topology | Experimental Marketing Agency </title>
-  <meta charset="utf-8">
- 
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.0.0/css/bootstrap.min.css">
+
   <style>
-    /* Paste your style.css contents below this line */
-
-    /* Example styles, replace with your actual style.css content */
+    /* ===== Base ===== */
+    html, body { height: 100%; }
     body {
-      color: white;
-      margin: 0;
-      text-align: center;
-      background-color: black;
+      margin: 0; color: #fff; background: #000; text-align: center;
+      overflow-x: hidden;
     }
+    a, a:hover, a:visited { color: #fff; text-decoration: none; }
 
-    canvas {
-      display: block;
-      width: 100%;
-      height: 100%;
-    }
-
-    p {
-      font-size: 20px;
-    }
-
+    /* keep header fixed, not scrolling */
     .header {
-      top: 45%;
+      position: fixed !important; /* force fixed */
+      top: 0; left: 0; right: 0;
+      z-index: 1000;
+      pointer-events: none; /* so canvas below still interactive */
     }
-    .footer {
-      bottom:3%;
-    }
-    .description {
-      color: gray;
-      padding-top: 50px;
-    }
-    a, a:hover, a:visited {
-      color: white;
-      text-decoration: none;
-    } 
+    .header .col { pointer-events: auto; } /* but allow links/text selection inside */
+
+    h1 { font-size: 112px; position: relative; }
+    h1::after { content: ' GE'; font-size: 14px; position: absolute; top: 3px; padding-left: 5px; font-weight: 400; }
+    h2::after { content: '2'; font-size: 12px; position: absolute; top: 14px; padding-left: 5px; }
+    p { font-size: 20px; }
+
+    .description { color: gray; padding-top: 50px; }
     .disable-selection {
-      -moz-user-select: none; /* Firefox */
-      -ms-user-select: none; /* Internet Explorer */
-      -khtml-user-select: none; /* KHTML browsers (e.g. Konqueror) */
-      -webkit-user-select: none; /* Chrome, Safari, and Opera */
-      -webkit-touch-callout: none; /* Disable Android and iOS callouts*/
-    }
-    h1::after {
-      content: ' GE';
-      font-size: 14px;
-      position:absolute;
-      font-weight: bold;
-      top: 3px;
-      padding-left: 5px;
-      font-weight: 400;
-    }
-    h2::after {
-      content: '2';
-      font-size: 12px;
-      position:absolute;
-      top: 14px;
-      padding-left: 5px;
+      -moz-user-select: none; -ms-user-select: none; -khtml-user-select: none;
+      -webkit-user-select: none; -webkit-touch-callout: none;
     }
 
-    h1 {
-      font-size: 112px;
-    }
+    /* Sections */
+    .section-full { width: 100%; height: 100vh; position: relative; overflow: hidden; }
 
-    /* === NEW: второй блок — скраб видео === */
-    #video-scrub {
-      position: relative;
-      width: 100%;
-      height: 100vh;
-      overflow: hidden;
-      background: radial-gradient(1200px 800px at 50% 50%, #0a0a0a, #000);
-      border-top: 1px solid rgba(255,255,255,0.06);
-    }
-    #scrubCanvas {
-      width: 100%;
-      height: 100%;
-      display:block;
-    }
+    /* ===== Block 1: Three.js area ===== */
+    #container { width: 100%; height: 100vh; }
+    #container canvas { display:block; width:100%; height:100%; }
+
+    /* ===== Block 2: Frame-scrub (full-bleed) ===== */
+    #video-scrub { background: radial-gradient(1200px 800px at 50% 50%, #0a0a0a, #000); border-top: 1px solid rgba(255,255,255,0.06); }
+    #scrubCanvas { display:block; width:100%; height:100%; }
     .hint {
-      position: absolute;
-      left: 50%;
-      bottom: 24px;
-      transform: translateX(-50%);
-      font-size: 14px;
-      color: rgba(255,255,255,0.7);
-      letter-spacing: .02em;
-      pointer-events: none;
-      user-select: none;
-      mix-blend-mode: screen;
+      position: absolute; left: 50%; bottom: 24px; transform: translateX(-50%);
+      font-size: 14px; color: rgba(255,255,255,0.7); letter-spacing: .02em;
+      pointer-events: none; user-select: none; mix-blend-mode: screen;
     }
-    /* End of example styles  </script>  */
   </style>
-  
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/89/three.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.0.0/js/bootstrap.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/1.20.3/TweenMax.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.5/dat.gui.min.js"></script>
-
 </head>
 
 <body>
-  <div class="container-fluid fixed-top header disable-selection">
+  <!-- Fixed header (stays put) -->
+  <div class="container-fluid header disable-selection py-4">
     <div class="row">
       <div class="col">
-        <h1>
-          <strong>Topology</strong>
-        </h1>
-        <p  href="#" role="button">
-          Immersive Content and Metaverse Development Agency focused in experimental marketing
-        </p>
+        <h1><strong>Topology</strong></h1>
+        <p>Immersive Content and Metaverse Development Agency focused in experimental marketing</p>
       </div>
     </div>
   </div>
 
-  <!-- БЛОК 1: твой WebGL -->
-  <div id="container"></div>
+  <!-- BLOCK 1: your current WebGL canvas area -->
+  <div id="container" class="section-full"></div>
 
-  <!-- БЛОК 2: НОВЫЙ — скраб видео по вращению/движению мыши -->
-  <section id="video-scrub" class="disable-selection" aria-label="Interactive video scrub">
+  <!-- BLOCK 2: NEW — frame sequence scrubber (mouse rotate/drag/wheel) -->
+  <section id="video-scrub" class="section-full disable-selection" aria-label="Interactive frame sequence scrub">
     <canvas id="scrubCanvas"></canvas>
-    <div class="hint">Поверни мышь вокруг центра или потяни влево/вправо · колесо — тоже работает</div>
+    <div class="hint">Вращай курсор вокруг центра или тяни влево/вправо · колесо — тоже работает</div>
   </section>
 
+  <!-- ===== Shaders (unchanged) ===== -->
   <script id="vertexShader" type="x-shader/x-vertex">
-    //
-    // GLSL textureless classic 3D noise "cnoise",
-    // with an RSL-style periodic variant "pnoise".
-    // Author:  Stefan Gustavson (stefan.gustavson@liu.se)
-    // Version: 2011-10-11
-    //
-    // Many thanks to Ian McEwan of Ashima Arts for the
-    // ideas for permutation and gradient selection.
-    //
-    // Copyright (c) 2011 Stefan Gustavson. All rights reserved.
-    // Distributed under the MIT license. See LICENSE file.
-    // https://github.com/ashima/webgl-noise
-    //
-
-    vec3 mod289(vec3 x)
-    {
-      return x - floor(x * (1.0 / 289.0)) * 289.0;
-    }
-
-    vec4 mod289(vec4 x)
-    {
-      return x - floor(x * (1.0 / 289.0)) * 289.0;
-    }
-
-    vec4 permute(vec4 x)
-    {
-      return mod289(((x*34.0)+1.0)*x);
-    }
-
-    vec4 taylorInvSqrt(vec4 r)
-    {
-      return 1.79284291400159 - 0.85373472095314 * r;
-    }
-
-    vec3 fade(vec3 t) {
-      return t*t*t*(t*(t*6.0-15.0)+10.0);
-    }
-
-    // Classic Perlin noise
-    float cnoise(vec3 P)
-    {
-      vec3 Pi0 = floor(P); // Integer part for indexing
-      vec3 Pi1 = Pi0 + vec3(1.0); // Integer part + 1
-      Pi0 = mod289(Pi0);
-      Pi1 = mod289(Pi1);
-      vec3 Pf0 = fract(P); // Fractional part for interpolation
-      vec3 Pf1 = Pf0 - vec3(1.0); // Fractional part - 1.0
-      vec4 ix = vec4(Pi0.x, Pi1.x, Pi0.x, Pi1.x);
-      vec4 iy = vec4(Pi0.yy, Pi1.yy);
-      vec4 iz0 = Pi0.zzzz;
-      vec4 iz1 = Pi1.zzzz;
-
-      vec4 ixy = permute(permute(ix) + iy);
-      vec4 ixy0 = permute(ixy + iz0);
-      vec4 ixy1 = permute(ixy + iz1);
-
-      vec4 gx0 = ixy0 * (1.0 / 7.0);
-      vec4 gy0 = fract(floor(gx0) * (1.0 / 7.0)) - 0.5;
-      gx0 = fract(gx0);
-      vec4 gz0 = vec4(0.5) - abs(gx0) - abs(gy0);
-      vec4 sz0 = step(gz0, vec4(0.0));
-      gx0 -= sz0 * (step(0.0, gx0) - 0.5);
-      gy0 -= sz0 * (step(0.0, gy0) - 0.5);
-
-      vec4 gx1 = ixy1 * (1.0 / 7.0);
-      vec4 gy1 = fract(floor(gx1) * (1.0 / 7.0)) - 0.5;
-      gx1 = fract(gx1);
-      vec4 gz1 = vec4(0.5) - abs(gx1) - abs(gy1);
-      vec4 sz1 = step(gz1, vec4(0.0));
-      gx1 -= sz1 * (step(0.0, gx1) - 0.5);
-      gy1 -= sz1 * (step(0.0, gy1) - 0.5);
-
-      vec3 g000 = vec3(gx0.x,gy0.x,gz0.x);
-      vec3 g100 = vec3(gx0.y,gy0.y,gz0.y);
-      vec3 g010 = vec3(gx0.z,gy0.z,gz0.z);
-      vec3 g110 = vec3(gx0.w,gy0.w,gz0.w);
-      vec3 g001 = vec3(gx1.x,gy1.x,gz1.x);
-      vec3 g101 = vec3(gx1.y,gy1.y,gz1.y);
-      vec3 g011 = vec3(gx1.z,gy1.z,gz1.z);
-      vec3 g111 = vec3(gx1.w,gy1.w,gz1.w);
-
-      vec4 norm0 = taylorInvSqrt(vec4(dot(g000, g000), dot(g010, g010), dot(g100, g100), dot(g110, g110)));
-      g000 *= norm0.x;
-      g010 *= norm0.y;
-      g100 *= norm0.z;
-      g110 *= norm0.w;
-      vec4 norm1 = taylorInvSqrt(vec4(dot(g001, g001), dot(g011, g011), dot(g101, g101), dot(g111, g111)));
-      g001 *= norm1.x;
-      g011 *= norm1.y;
-      g101 *= norm1.z;
-      g111 *= norm1.w;
-
-      float n000 = dot(g000, Pf0);
-      float n100 = dot(g100, vec3(Pf1.x, Pf0.yz));
-      float n010 = dot(g010, vec3(Pf0.x, Pf1.y, Pf0.z));
-      float n110 = dot(g110, vec3(Pf1.xy, Pf0.z));
-      float n001 = dot(g001, vec3(Pf0.xy, Pf1.z));
-      float n101 = dot(g101, vec3(Pf1.x, Pf0.y, Pf1.z));
-      float n011 = dot(g011, vec3(Pf0.x, Pf1.yz));
-      float n111 = dot(g111, Pf1);
-
-      vec3 fade_xyz = fade(Pf0);
-      vec4 n_z = mix(vec4(n000, n100, n010, n110), vec4(n001, n101, n011, n111), fade_xyz.z);
-      vec2 n_yz = mix(n_z.xy, n_z.zw, fade_xyz.y);
-      float n_xyz = mix(n_yz.x, n_yz.y, fade_xyz.x);
-      return 2.2 * n_xyz;
-    }
-
-    // Classic Perlin noise, periodic variant
-    float pnoise(vec3 P, vec3 rep)
-    {
-      vec3 Pi0 = mod(floor(P), rep); // Integer part, modulo period
-      vec3 Pi1 = mod(Pi0 + vec3(1.0), rep); // Integer part + 1, mod period
-      Pi0 = mod289(Pi0);
-      Pi1 = mod289(Pi1);
-      vec3 Pf0 = fract(P); // Fractional part for interpolation
-      vec3 Pf1 = Pf0 - vec3(1.0); // Fractional part - 1.0
-      vec4 ix = vec4(Pi0.x, Pi1.x, Pi0.x, Pi1.x);
-      vec4 iy = vec4(Pi0.yy, Pi1.yy);
-      vec4 iz0 = Pi0.zzzz;
-      vec4 iz1 = Pi1.zzzz;
-
-      vec4 ixy = permute(permute(ix) + iy);
-      vec4 ixy0 = permute(ixy + iz0);
-      vec4 ixy1 = permute(ixy + iz1);
-
-      vec4 gx0 = ixy0 * (1.0 / 7.0);
-      vec4 gy0 = fract(floor(gx0) * (1.0 / 7.0)) - 0.5;
-      gx0 = fract(gx0);
-      vec4 gz0 = vec4(0.5) - abs(gx0) - abs(gy0);
-      vec4 sz0 = step(gz0, vec4(0.0));
-      gx0 -= sz0 * (step(0.0, gx0) - 0.5);
-      gy0 -= sz0 * (step(0.0, gy0) - 0.5);
-
-      vec4 gx1 = ixy1 * (1.0 / 7.0);
-      vec4 gy1 = fract(floor(gx1) * (1.0 / 7.0)) - 0.5;
-      gx1 = fract(gx1);
-      vec4 gz1 = vec4(0.5) - abs(gx1) - abs(gy1);
-      vec4 sz1 = step(gz1, vec4(0.0));
-      gx1 -= sz1 * (step(0.0, gx1) - 0.5);
-      gy1 -= sz1 * (step(0.0, gy1) - 0.5);
-
-      vec3 g000 = vec3(gx0.x,gy0.x,gz0.x);
-      vec3 g100 = vec3(gx0.y,gy0.y,gz0.y);
-      vec3 g010 = vec3(gx0.z,gy0.z,gz0.z);
-      vec3 g110 = vec3(gx0.w,gy0.w,gz0.w);
-      vec3 g001 = vec3(gx1.x,gy1.x,gz1.x);
-      vec3 g101 = vec3(gx1.y,gy1.y,gz1.y);
-      vec3 g011 = vec3(gx1.z,gy1.z,gz1.z);
-      vec3 g111 = vec3(gx1.w,gy1.w,gz1.w);
-
-      vec4 norm0 = taylorInvSqrt(vec4(dot(g000, g000), dot(g010, g010), dot(g100, g100), dot(g110, g110)));
-      g000 *= norm0.x;
-      g010 *= norm0.y;
-      g100 *= norm0.z;
-      g110 *= norm0.w;
-      vec4 norm1 = taylorInvSqrt(vec4(dot(g001, g001), dot(g011, g011), dot(g101, g101), dot(g111, g111)));
-      g001 *= norm1.x;
-      g011 *= norm1.y;
-      g101 *= norm1.z;
-      g111 *= norm1.w;
-
-      float n000 = dot(g000, Pf0);
-      float n100 = dot(g100, vec3(Pf1.x, Pf0.yz));
-      float n010 = dot(g010, vec3(Pf0.x, Pf1.y, Pf0.z));
-      float n110 = dot(g110, vec3(Pf1.xy, Pf0.z));
-      float n001 = dot(g001, vec3(Pf0.xy, Pf1.z));
-      float n101 = dot(g101, vec3(Pf1.x, Pf0.y, Pf1.z));
-      float n011 = dot(g011, vec3(Pf0.x, Pf1.yz));
-      float n111 = dot(g111, Pf1);
-
-      vec3 fade_xyz = fade(Pf0);
-      vec4 n_z = mix(vec4(n000, n100, n010, n110), vec4(n001, n101, n011, n111), fade_xyz.z);
-      vec2 n_yz = mix(n_z.xy, n_z.zw, fade_xyz.y);
-      float n_xyz = mix(n_yz.x, n_yz.y, fade_xyz.x);
-      return 1.5 * n_xyz;
-    }
-    
-    // Turbulence By Jaume Sanchez => https://codepen.io/spite/
-    
-    varying vec2 vUv;
-    varying float noise;
-    varying float qnoise;
-    varying float displacement;
-    
-    uniform float time;
-    uniform float pointscale;
-    uniform float decay;
-    uniform float complex;
-    uniform float waves;
-    uniform float eqcolor;
-    uniform bool fragment;
-
-    float turbulence( vec3 p) {
-      float t = - 0.1;
-      for (float f = 1.0 ; f <= 3.0 ; f++ ){
-        float power = pow( 2.0, f );
-        t += abs( pnoise( vec3( power * p ), vec3( 10.0, 10.0, 10.0 ) ) / power );
-      }
-      return t;
-    }
-
-    void main() {
-
-      vUv = uv;
-
-      noise = (1.0 *  - waves) * turbulence( decay * abs(normal + time));
-      qnoise = (2.0 *  - eqcolor) * turbulence( decay * abs(normal + time));
-      float b = pnoise( complex * (position) + vec3( 1.0 * time ), vec3( 100.0 ) );
-      
-      if (fragment == true) {
-        displacement = - sin(noise) + normalize(b * 0.5);
-      } else {
-        displacement = - sin(noise) + cos(b * 0.5);
-      }
-
-      vec3 newPosition = (position) + (normal * displacement);
-      gl_Position = (projectionMatrix * modelViewMatrix) * vec4( newPosition, 1.0 );
-      gl_PointSize = (pointscale);
-      //gl_ClipDistance[0];
-
-    }
+    vec3 mod289(vec3 x){return x - floor(x * (1.0 / 289.0)) * 289.0;}
+    vec4 mod289(vec4 x){return x - floor(x * (1.0 / 289.0)) * 289.0;}
+    vec4 permute(vec4 x){return mod289(((x*34.0)+1.0)*x);} 
+    vec4 taylorInvSqrt(vec4 r){return 1.79284291400159 - 0.85373472095314 * r;}
+    vec3 fade(vec3 t){return t*t*t*(t*(t*6.0-15.0)+10.0);} 
+    float cnoise(vec3 P){vec3 Pi0=floor(P);vec3 Pi1=Pi0+vec3(1.0);Pi0=mod289(Pi0);Pi1=mod289(Pi1);vec3 Pf0=fract(P);vec3 Pf1=Pf0-vec3(1.0);vec4 ix=vec4(Pi0.x,Pi1.x,Pi0.x,Pi1.x);vec4 iy=vec4(Pi0.yy,Pi1.yy);vec4 iz0=Pi0.zzzz;vec4 iz1=Pi1.zzzz;vec4 ixy=permute(permute(ix)+iy);vec4 ixy0=permute(ixy+iz0);vec4 ixy1=permute(ixy+iz1);vec4 gx0=ixy0*(1.0/7.0);vec4 gy0=fract(floor(gx0)*(1.0/7.0))-0.5;gx0=fract(gx0);vec4 gz0=vec4(0.5)-abs(gx0)-abs(gy0);vec4 sz0=step(gz0,vec4(0.0));gx0-=sz0*(step(0.0,gx0)-0.5);gy0-=sz0*(step(0.0,gy0)-0.5);vec4 gx1=ixy1*(1.0/7.0);vec4 gy1=fract(floor(gx1)*(1.0/7.0))-0.5;gx1=fract(gx1);vec4 gz1=vec4(0.5)-abs(gx1)-abs(gy1);vec4 sz1=step(gz1,vec4(0.0));gx1-=sz1*(step(0.0,gx1)-0.5);gy1-=sz1*(step(0.0,gy1)-0.5);vec3 g000=vec3(gx0.x,gy0.x,gz0.x);vec3 g100=vec3(gx0.y,gy0.y,gz0.y);vec3 g010=vec3(gx0.z,gy0.z,gz0.z);vec3 g110=vec3(gx0.w,gy0.w,gz0.w);vec3 g001=vec3(gx1.x,gy1.x,gz1.x);vec3 g101=vec3(gx1.y,gy1.y,gz1.y);vec3 g011=vec3(gx1.z,gy1.z,gz1.z);vec3 g111=vec3(gx1.w,gy1.w,gz1.w);vec4 norm0=taylorInvSqrt(vec4(dot(g000,g000),dot(g010,g010),dot(g100,g100),dot(g110,g110)));g000*=norm0.x;g010*=norm0.y;g100*=norm0.z;g110*=norm0.w;vec4 norm1=taylorInvSqrt(vec4(dot(g001,g001),dot(g011,g011),dot(g101,g101),dot(g111,g111)));g001*=norm1.x;g011*=norm1.y;g101*=norm1.z;g111*=norm1.w;float n000=dot(g000,Pf0);float n100=dot(g100,vec3(Pf1.x,Pf0.yz));float n010=dot(g010,vec3(Pf0.x,Pf1.y,Pf0.z));float n110=dot(g110,vec3(Pf1.xy,Pf0.z));float n001=dot(g001,vec3(Pf0.xy,Pf1.z));float n101=dot(g101,vec3(Pf1.x,Pf0.y,Pf1.z));float n011=dot(g011,vec3(Pf0.x,Pf1.yz));float n111=dot(g111,Pf1);vec3 fade_xyz=fade(Pf0);vec4 n_z=mix(vec4(n000,n100,n010,n110),vec4(n001,n101,n011,n111),fade_xyz.z);vec2 n_yz=mix(n_z.xy,n_z.zw,fade_xyz.y);float n_xyz=mix(n_yz.x,n_yz.y,fade_xyz.x);return 2.2*n_xyz;}
+    float pnoise(vec3 P, vec3 rep){vec3 Pi0=mod(floor(P),rep);vec3 Pi1=mod(Pi0+vec3(1.0),rep);Pi0=mod289(Pi0);Pi1=mod289(Pi1);vec3 Pf0=fract(P);vec3 Pf1=Pf0-vec3(1.0);vec4 ix=vec4(Pi0.x,Pi1.x,Pi0.x,Pi1.x);vec4 iy=vec4(Pi0.yy,Pi1.yy);vec4 iz0=Pi0.zzzz;vec4 iz1=Pi1.zzzz;vec4 ixy=permute(permute(ix)+iy);vec4 ixy0=permute(ixy+iz0);vec4 ixy1=permute(ixy+iz1);vec4 gx0=ixy0*(1.0/7.0);vec4 gy0=fract(floor(gx0)*(1.0/7.0))-0.5;gx0=fract(gx0);vec4 gz0=vec4(0.5)-abs(gx0)-abs(gy0);vec4 sz0=step(gz0,vec4(0.0));gx0-=sz0*(step(0.0,gx0)-0.5);gy0-=sz0*(step(0.0,gy0)-0.5);vec4 gx1=ixy1*(1.0/7.0);vec4 gy1=fract(floor(gx1)*(1.0/7.0))-0.5;gx1=fract(gx1);vec4 gz1=vec4(0.5)-abs(gx1)-abs(gy1);vec4 sz1=step(gz1,vec4(0.0));gx1-=sz1*(step(0.0,gx1)-0.5);gy1-=sz1*(step(0.0,gy1)-0.5);vec3 g000=vec3(gx0.x,gy0.x,gz0.x);vec3 g100=vec3(gx0.y,gy0.y,gz0.y);vec3 g010=vec3(gx0.z,gy0.z,gz0.z);vec3 g110=vec3(gx0.w,gy0.w,gz0.w);vec3 g001=vec3(gx1.x,gy1.x,gz1.x);vec3 g101=vec3(gx1.y,gy1.y,gz1.y);vec3 g011=vec3(gx1.z,gy1.z,gz1.z);vec3 g111=vec3(gx1.w,gy1.w,gz1.w);vec4 norm0=taylorInvSqrt(vec4(dot(g000,g000),dot(g010,g010),dot(g100,g100),dot(g110,g110)));g000*=norm0.x;g010*=norm0.y;g100*=norm0.z;g110*=norm0.w;vec4 norm1=taylorInvSqrt(vec4(dot(g001,g001),dot(g011,g011),dot(g101,g101),dot(g111,g111)));g001*=norm1.x;g011*=norm1.y;g101*=norm1.z;g111*=norm1.w;float n000=dot(g000,Pf0);float n100=dot(g100,vec3(Pf1.x,Pf0.yz));float n010=dot(g010,vec3(Pf0.x,Pf1.y,Pf0.z));float n110=dot(g110,vec3(Pf1.xy,Pf0.z));float n001=dot(g001,vec3(Pf0.xy,Pf1.z));float n101=dot(g101,vec3(Pf1.x,Pf0.y,Pf1.z));float n011=dot(g011,vec3(Pf0.x,Pf1.yz));float n111=dot(g111,Pf1);vec3 fade_xyz=fade(Pf0);vec4 n_z=mix(vec4(n000,n100,n010,n110),vec4(n001,n101,n011,n111),fade_xyz.z);vec2 n_yz=mix(n_z.xy,n_z.zw,fade_xyz.y);float n_xyz=mix(n_yz.x,n_yz.y,fade_xyz.x);return 1.5*n_xyz;}
+    varying vec2 vUv; varying float noise; varying float qnoise; varying float displacement; uniform float time; uniform float pointscale; uniform float decay; uniform float complex; uniform float waves; uniform float eqcolor; uniform bool fragment; float turbulence(vec3 p){float t=-0.1; for(float f=1.0; f<=3.0; f++){float power=pow(2.0,f); t += abs(pnoise(vec3(power*p), vec3(10.0,10.0,10.0))/power);} return t;}
+    void main(){ vUv=uv; noise=(1.0*-waves)*turbulence(decay*abs(normal+time)); qnoise=(2.0*-eqcolor)*turbulence(decay*abs(normal+time)); float b=pnoise(complex*(position)+vec3(1.0*time), vec3(100.0)); displacement = (fragment==true) ? (-sin(noise)+normalize(b*0.5)) : (-sin(noise)+cos(b*0.5)); vec3 newPosition=(position)+(normal*displacement); gl_Position=(projectionMatrix*modelViewMatrix)*vec4(newPosition,1.0); gl_PointSize=(pointscale); }
   </script>
   <script id="fragmentShader" type="x-shader/x-vertex">
-    varying float qnoise;
-    
-    uniform float time;
-    uniform bool redhell;
+    varying float qnoise; uniform float time; uniform bool redhell; void main(){ float r,g,b; if(!redhell==true){ r=cos(qnoise+0.5); g=cos(qnoise-0.5); b=0.0; } else { r=cos(qnoise+0.5); g=cos(qnoise-0.5); b=abs(qnoise);} gl_FragColor=vec4(r,g,b,1.0); }
+  </script>
 
-    void main() {
-      float r, g, b;
-
-      
-      if (!redhell == true) {
-        r = cos(qnoise + 0.5);
-        g = cos(qnoise - 0.5);
-        b = 0.0;
-      } else {
-        r = cos(qnoise + 0.5);
-        g = cos(qnoise - 0.5);
-        b = abs(qnoise);
-      }
-      gl_FragColor = vec4(r, g, b, 1.0);
-    }
-      </script>
-
-  <!-- Твой исходный скрипт для первого блока -->
+  <!-- Your original script powering Block 1 -->
   <script src="script.js"></script>
 
-  <!-- НОВЫЙ скрипт для второго блока (скраб видео) -->
+  <!-- ===== NEW: Frame sequence scrub logic ===== -->
   <script>
-  (function () {
-    // ==== Настройки ====
-    const videoSrc = "MAIN_W_4.mp4"; // <-- ЗАМЕНИ на путь к твоему ролику
-    const wheelStep = 0.02;            // шаг скраба от колеса мыши
-    const dragSensitivity = 0.0025;    // чувствительность горизонтального драг-скраба
-    const angleSensitivity = 0.25;     // чувствительность «углового» вращения
+  (function(){
+    // ====== CONFIG ======
+    const frameCount = 180; // кол-во кадров в последовательности
+    const frameW = 1920, frameH = 800; // фактический размер изображений
+    const framePath = i => `frames/frame_${String(i).padStart(4,'0')}.jpg`; // измените под вашу структуру
 
-    // ==== Элементы ====
-    const section = document.getElementById("video-scrub");
-    const canvas = document.getElementById("scrubCanvas");
-    const ctx = canvas.getContext("2d");
+    const wheelStep = 1;          // шаг индекса от колеса
+    const dragSensitivity = 0.35; // px -> индекс/100 (будет нормировано ниже)
+    const angleSensitivity = 24;  // радианы -> индексы (чем больше, тем чувствительнее)
 
-    // Динамический видео-элемент (без автоплея)
-    const video = document.createElement("video");
-    video.src = videoSrc;
-    video.crossOrigin = "anonymous";
-    video.playsInline = true;
-    video.muted = true;
-    video.preload = "auto";
-    video.pause();
+    // ====== Elements ======
+    const section = document.getElementById('video-scrub');
+    const canvas = document.getElementById('scrubCanvas');
+    const ctx = canvas.getContext('2d');
 
-    // Размеры canvas = физические пиксели
-    function fitCanvas() {
+    // DPR-aware canvas
+    function fitCanvas(){
       const dpr = window.devicePixelRatio || 1;
-      const { clientWidth:w, clientHeight:h } = canvas;
-      canvas.width  = Math.round(w * dpr);
+      const w = section.clientWidth;
+      const h = section.clientHeight;
+      canvas.width = Math.round(w * dpr);
       canvas.height = Math.round(h * dpr);
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      drawFrame(); // перерисовать при ресайзе
-    }
-    const resizeObserver = new ResizeObserver(fitCanvas);
-    resizeObserver.observe(section);
-
-    // Центр секции для «углового» жеста
-    function center() {
-      const rect = section.getBoundingClientRect();
-      return { cx: rect.left + rect.width/2, cy: rect.top + rect.height/2 };
+      canvas.style.width = w + 'px';
+      canvas.style.height = h + 'px';
+      ctx.setTransform(dpr,0,0,dpr,0,0);
+      drawCurrent();
     }
 
-    // Скраб-позиция [0..1]
-    let scrub = 0;
-    let targetTime = 0;
+    const images = new Array(frameCount);
+    let loaded = 0;
+    let currentIndex = 0; // 0..frameCount-1
 
-    // Отрисовка текущего кадра видео в canvas
-    function drawFrame() {
-      if (!video.videoWidth) return;
-      // Cover (центрирование/кроп под canvas)
-      const cw = canvas.clientWidth;
-      const ch = canvas.clientHeight;
-      const vw = video.videoWidth;
-      const vh = video.videoHeight;
-      const scale = Math.max(cw / vw, ch / vh);
-      const dw = vw * scale;
-      const dh = vh * scale;
+    function drawImageCover(img){
+      const cw = canvas.clientWidth, ch = canvas.clientHeight;
+      const iw = frameW, ih = frameH; // стабильный размер кадров
+      const scale = Math.max(cw/iw, ch/ih);
+      const dw = iw * scale, dh = ih * scale;
       const dx = (cw - dw) / 2;
       const dy = (ch - dh) / 2;
-      ctx.clearRect(0, 0, cw, ch);
-      ctx.drawImage(video, dx, dy, dw, dh);
+      ctx.clearRect(0,0,cw,ch);
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(img, dx, dy, dw, dh);
     }
 
-    // Когда можно рисовать — на событии seeked/timeupdate/requestVideoFrameCallback
-    function seekAndDraw(time) {
-      // clamp
-      time = Math.max(0, Math.min(video.duration || 0, time));
-      if (!isFinite(time)) return;
-      if (Math.abs(video.currentTime - time) < 1/120) { // почти тот же кадр
-        drawFrame();
-        return;
-      }
-      pendingSeekTime = time;
-      video.currentTime = time;
+    function drawCurrent(){
+      const img = images[currentIndex];
+      if (img && img.complete) drawImageCover(img);
     }
 
-    let pendingSeekTime = null;
-    const onSeeked = () => {
-      if (pendingSeekTime !== null && Math.abs(video.currentTime - pendingSeekTime) > 1/60) {
-        return; // еще в пути к целевому времени
-      }
-      pendingSeekTime = null;
-      drawFrame();
-    };
-    video.addEventListener("seeked", onSeeked);
-    video.addEventListener("timeupdate", drawFrame);
-
-    // Дополнительно — если доступен API кадров, будет очень плавно
-    if ("requestVideoFrameCallback" in HTMLVideoElement.prototype) {
-      const pump = () => {
-        drawFrame();
-        video.requestVideoFrameCallback(pump);
-      };
-      video.addEventListener("loadeddata", () => {
-        video.requestVideoFrameCallback(pump);
+    // Progressive loader: сначала ключевые кадры, затем остальное
+    function loadFrame(i){
+      if (images[i]) return; // уже создан
+      const img = new Image();
+      img.decoding = 'async';
+      img.loading = 'eager';
+      img.src = framePath(i);
+      images[i] = img;
+      img.addEventListener('load', () => {
+        loaded++;
+        if (i === 0) drawCurrent();
       });
     }
 
-    // Жесты: drag (горизонт), «вращение» (угол относительно центра), колесо
-    let isPointerDown = false;
-    let lastX = 0;
-    let lastAngle = null;
-
-    function normScrub(s) { return Math.max(0, Math.min(1, s)); }
-    function toTime(s) { return (video.duration || 0) * normScrub(s); }
-
-    section.addEventListener("pointerdown", (e) => {
-      isPointerDown = true;
-      lastX = e.clientX;
-      const { cx, cy } = center();
-      lastAngle = Math.atan2(e.clientY - cy, e.clientX - cx);
-      section.setPointerCapture(e.pointerId);
-    }, { passive: true });
-
-    section.addEventListener("pointermove", (e) => {
-      if (!isPointerDown) return;
-      // Горизонтальный скраб
-      const dx = e.clientX - lastX;
-      lastX = e.clientX;
-      scrub = normScrub(scrub + dx * dragSensitivity);
-
-      // Угловой скраб вокруг центра
-      const { cx, cy } = center();
-      const angle = Math.atan2(e.clientY - cy, e.clientX - cx);
-      let dAngle = angle - lastAngle;
-      if (dAngle > Math.PI) dAngle -= 2*Math.PI;
-      if (dAngle < -Math.PI) dAngle += 2*Math.PI;
-      lastAngle = angle;
-      scrub = normScrub(scrub + dAngle * angleSensitivity / (2*Math.PI));
-
-      targetTime = toTime(scrub);
-      if (!rafScheduled) {
-        rafScheduled = true;
-        requestAnimationFrame(() => {
-          rafScheduled = false;
-          seekAndDraw(targetTime);
-        });
+    // Стартовая загрузка: 0, середина, концы, затем остальная сетка
+    function primeLoad(){
+      const prime = [0, Math.floor(frameCount/2), frameCount-1];
+      prime.forEach(loadFrame);
+      // затем равномерно через 6 кадров
+      for (let i=0;i<frameCount;i+=6) loadFrame(i);
+      // а потом досыпаем остальное по очереди малой нагрузкой
+      let q = 0;
+      function trickle(){
+        for (let k=0;k<4 && q<frameCount; k++, q++) loadFrame(q);
+        if (q<frameCount) requestIdleCallback(trickle, {timeout: 200});
       }
-    });
-
-    section.addEventListener("pointerup", (e) => {
-      isPointerDown = false;
-      lastAngle = null;
-      try { section.releasePointerCapture(e.pointerId); } catch(_) {}
-    }, { passive: true });
-
-    // Колесо мыши = скраб
-    section.addEventListener("wheel", (e) => {
-      e.preventDefault();
-      const dir = Math.sign(e.deltaY || e.deltaX || 1);
-      scrub = normScrub(scrub + dir * wheelStep);
-      seekAndDraw(toTime(scrub));
-    }, { passive: false });
-
-    let rafScheduled = false;
-
-    // Инициализация
-    video.addEventListener("loadedmetadata", () => {
-      video.pause();
-      scrub = 0;
-      targetTime = 0;
-      seekAndDraw(0);
-    });
-    setTimeout(() => { if (isNaN(video.duration)) video.load(); }, 0);
-
-    function boot() {
-      canvas.style.width  = section.clientWidth + "px";
-      canvas.style.height = section.clientHeight + "px";
-      fitCanvas();
+      if ('requestIdleCallback' in window) requestIdleCallback(trickle); else setTimeout(trickle, 16);
     }
-    window.addEventListener("resize", fitCanvas, { passive: true });
-    requestAnimationFrame(boot);
 
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = "high";
+    // ====== Scrub controls ======
+    function clampIndex(x){ return Math.max(0, Math.min(frameCount-1, x|0)); }
+    function setIndex(i){
+      const next = clampIndex(i);
+      if (next === currentIndex) return;
+      currentIndex = next;
+      if (!images[currentIndex]) loadFrame(currentIndex);
+      requestAnimationFrame(drawCurrent);
+    }
+
+    // Pointer & angle
+    let isDown = false, lastX = 0, lastAngle = null;
+    function center(){ const r = section.getBoundingClientRect(); return { cx: r.left + r.width/2, cy: r.top + r.height/2 }; }
+
+    section.addEventListener('pointerdown', e => {
+      isDown = true; lastX = e.clientX; const {cx,cy} = center(); lastAngle = Math.atan2(e.clientY - cy, e.clientX - cx); section.setPointerCapture(e.pointerId);
+    }, {passive:true});
+
+    section.addEventListener('pointermove', e => {
+      if (!isDown) return;
+      // horizontal drag
+      const dx = e.clientX - lastX; lastX = e.clientX;
+      setIndex(currentIndex + dx * (dragSensitivity / 100) * frameCount);
+      // angular drag
+      const {cx, cy} = center();
+      const ang = Math.atan2(e.clientY - cy, e.clientX - cx);
+      let dA = ang - lastAngle; if (dA > Math.PI) dA -= 2*Math.PI; if (dA < -Math.PI) dA += 2*Math.PI; lastAngle = ang;
+      setIndex(currentIndex + dA * angleSensitivity);
+    }, {passive:true});
+
+    section.addEventListener('pointerup', e => { isDown = false; lastAngle = null; try{ section.releasePointerCapture(e.pointerId);}catch(_){} }, {passive:true});
+
+    // Wheel
+    section.addEventListener('wheel', e => { e.preventDefault(); const dir = Math.sign(e.deltaY || e.deltaX || 1); setIndex(currentIndex + dir * wheelStep); }, {passive:false});
+
+    // Resize handling
+    const ro = new ResizeObserver(fitCanvas); ro.observe(section);
+    window.addEventListener('resize', fitCanvas, {passive:true});
+
+    // Boot
+    fitCanvas();
+    primeLoad();
+    setIndex(0);
   })();
   </script>
 </body>
