@@ -6,70 +6,95 @@
   <meta charset="utf-8">
  
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.0.0/css/bootstrap.min.css">
-      <style>
+  <style>
     /* Paste your style.css contents below this line */
 
     /* Example styles, replace with your actual style.css content */
-body {
-  color: white;
-  margin: 0;
-  text-align: center;
-  background-color: black;
-}
+    body {
+      color: white;
+      margin: 0;
+      text-align: center;
+      background-color: black;
+    }
 
-canvas {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
 
-p {
-  font-size: 20px;
-}
+    p {
+      font-size: 20px;
+    }
 
-.header {
-  top: 45%;
-}
-.footer {
-  bottom:3%;
-}
-.description {
-  color: gray;
-  padding-top: 50px;
-}
-a, a:hover, a:visited {
-  color: white;
-  text-decoration: none;
-} 
-.disable-selection {
-     -moz-user-select: none; /* Firefox */
+    .header {
+      top: 45%;
+    }
+    .footer {
+      bottom:3%;
+    }
+    .description {
+      color: gray;
+      padding-top: 50px;
+    }
+    a, a:hover, a:visited {
+      color: white;
+      text-decoration: none;
+    } 
+    .disable-selection {
+      -moz-user-select: none; /* Firefox */
       -ms-user-select: none; /* Internet Explorer */
-   -khtml-user-select: none; /* KHTML browsers (e.g. Konqueror) */
-  -webkit-user-select: none; /* Chrome, Safari, and Opera */
-  -webkit-touch-callout: none; /* Disable Android and iOS callouts*/
-}
-h1::after {
-  content: ' GE';
-  font-size: 14px;
-  position:absolute;
-  font-weight: bold;
-  top: 3px;
-  padding-left: 5px;
-  font-weight: 400;
-}
-h2::after {
-  content: '2';
-  font-size: 12px;
-  position:absolute;
-  top: 14px;
-  padding-left: 5px;
-}
+      -khtml-user-select: none; /* KHTML browsers (e.g. Konqueror) */
+      -webkit-user-select: none; /* Chrome, Safari, and Opera */
+      -webkit-touch-callout: none; /* Disable Android and iOS callouts*/
+    }
+    h1::after {
+      content: ' GE';
+      font-size: 14px;
+      position:absolute;
+      font-weight: bold;
+      top: 3px;
+      padding-left: 5px;
+      font-weight: 400;
+    }
+    h2::after {
+      content: '2';
+      font-size: 12px;
+      position:absolute;
+      top: 14px;
+      padding-left: 5px;
+    }
 
-h1 {
+    h1 {
+      font-size: 112px;
+    }
 
-  font-size: 112px;
-}
-
+    /* === NEW: второй блок — скраб видео === */
+    #video-scrub {
+      position: relative;
+      width: 100%;
+      height: 100vh;
+      overflow: hidden;
+      background: radial-gradient(1200px 800px at 50% 50%, #0a0a0a, #000);
+      border-top: 1px solid rgba(255,255,255,0.06);
+    }
+    #scrubCanvas {
+      width: 100%;
+      height: 100%;
+      display:block;
+    }
+    .hint {
+      position: absolute;
+      left: 50%;
+      bottom: 24px;
+      transform: translateX(-50%);
+      font-size: 14px;
+      color: rgba(255,255,255,0.7);
+      letter-spacing: .02em;
+      pointer-events: none;
+      user-select: none;
+      mix-blend-mode: screen;
+    }
     /* End of example styles  </script>  */
   </style>
   
@@ -93,7 +118,16 @@ h1 {
       </div>
     </div>
   </div>
+
+  <!-- БЛОК 1: твой WebGL -->
   <div id="container"></div>
+
+  <!-- БЛОК 2: НОВЫЙ — скраб видео по вращению/движению мыши -->
+  <section id="video-scrub" class="disable-selection" aria-label="Interactive video scrub">
+    <canvas id="scrubCanvas"></canvas>
+    <div class="hint">Поверни мышь вокруг центра или потяни влево/вправо · колесо — тоже работает</div>
+  </section>
+
   <script id="vertexShader" type="x-shader/x-vertex">
     //
     // GLSL textureless classic 3D noise "cnoise",
@@ -340,6 +374,185 @@ h1 {
       gl_FragColor = vec4(r, g, b, 1.0);
     }
       </script>
+
+  <!-- Твой исходный скрипт для первого блока -->
   <script src="script.js"></script>
+
+  <!-- НОВЫЙ скрипт для второго блока (скраб видео) -->
+  <script>
+  (function () {
+    // ==== Настройки ====
+    const videoSrc = "MAIN_W_4.mp4"; // <-- ЗАМЕНИ на путь к твоему ролику
+    const wheelStep = 0.02;            // шаг скраба от колеса мыши
+    const dragSensitivity = 0.0025;    // чувствительность горизонтального драг-скраба
+    const angleSensitivity = 0.25;     // чувствительность «углового» вращения
+
+    // ==== Элементы ====
+    const section = document.getElementById("video-scrub");
+    const canvas = document.getElementById("scrubCanvas");
+    const ctx = canvas.getContext("2d");
+
+    // Динамический видео-элемент (без автоплея)
+    const video = document.createElement("video");
+    video.src = videoSrc;
+    video.crossOrigin = "anonymous";
+    video.playsInline = true;
+    video.muted = true;
+    video.preload = "auto";
+    video.pause();
+
+    // Размеры canvas = физические пиксели
+    function fitCanvas() {
+      const dpr = window.devicePixelRatio || 1;
+      const { clientWidth:w, clientHeight:h } = canvas;
+      canvas.width  = Math.round(w * dpr);
+      canvas.height = Math.round(h * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      drawFrame(); // перерисовать при ресайзе
+    }
+    const resizeObserver = new ResizeObserver(fitCanvas);
+    resizeObserver.observe(section);
+
+    // Центр секции для «углового» жеста
+    function center() {
+      const rect = section.getBoundingClientRect();
+      return { cx: rect.left + rect.width/2, cy: rect.top + rect.height/2 };
+    }
+
+    // Скраб-позиция [0..1]
+    let scrub = 0;
+    let targetTime = 0;
+
+    // Отрисовка текущего кадра видео в canvas
+    function drawFrame() {
+      if (!video.videoWidth) return;
+      // Cover (центрирование/кроп под canvas)
+      const cw = canvas.clientWidth;
+      const ch = canvas.clientHeight;
+      const vw = video.videoWidth;
+      const vh = video.videoHeight;
+      const scale = Math.max(cw / vw, ch / vh);
+      const dw = vw * scale;
+      const dh = vh * scale;
+      const dx = (cw - dw) / 2;
+      const dy = (ch - dh) / 2;
+      ctx.clearRect(0, 0, cw, ch);
+      ctx.drawImage(video, dx, dy, dw, dh);
+    }
+
+    // Когда можно рисовать — на событии seeked/timeupdate/requestVideoFrameCallback
+    function seekAndDraw(time) {
+      // clamp
+      time = Math.max(0, Math.min(video.duration || 0, time));
+      if (!isFinite(time)) return;
+      if (Math.abs(video.currentTime - time) < 1/120) { // почти тот же кадр
+        drawFrame();
+        return;
+      }
+      pendingSeekTime = time;
+      video.currentTime = time;
+    }
+
+    let pendingSeekTime = null;
+    const onSeeked = () => {
+      if (pendingSeekTime !== null && Math.abs(video.currentTime - pendingSeekTime) > 1/60) {
+        return; // еще в пути к целевому времени
+      }
+      pendingSeekTime = null;
+      drawFrame();
+    };
+    video.addEventListener("seeked", onSeeked);
+    video.addEventListener("timeupdate", drawFrame);
+
+    // Дополнительно — если доступен API кадров, будет очень плавно
+    if ("requestVideoFrameCallback" in HTMLVideoElement.prototype) {
+      const pump = () => {
+        drawFrame();
+        video.requestVideoFrameCallback(pump);
+      };
+      video.addEventListener("loadeddata", () => {
+        video.requestVideoFrameCallback(pump);
+      });
+    }
+
+    // Жесты: drag (горизонт), «вращение» (угол относительно центра), колесо
+    let isPointerDown = false;
+    let lastX = 0;
+    let lastAngle = null;
+
+    function normScrub(s) { return Math.max(0, Math.min(1, s)); }
+    function toTime(s) { return (video.duration || 0) * normScrub(s); }
+
+    section.addEventListener("pointerdown", (e) => {
+      isPointerDown = true;
+      lastX = e.clientX;
+      const { cx, cy } = center();
+      lastAngle = Math.atan2(e.clientY - cy, e.clientX - cx);
+      section.setPointerCapture(e.pointerId);
+    }, { passive: true });
+
+    section.addEventListener("pointermove", (e) => {
+      if (!isPointerDown) return;
+      // Горизонтальный скраб
+      const dx = e.clientX - lastX;
+      lastX = e.clientX;
+      scrub = normScrub(scrub + dx * dragSensitivity);
+
+      // Угловой скраб вокруг центра
+      const { cx, cy } = center();
+      const angle = Math.atan2(e.clientY - cy, e.clientX - cx);
+      let dAngle = angle - lastAngle;
+      if (dAngle > Math.PI) dAngle -= 2*Math.PI;
+      if (dAngle < -Math.PI) dAngle += 2*Math.PI;
+      lastAngle = angle;
+      scrub = normScrub(scrub + dAngle * angleSensitivity / (2*Math.PI));
+
+      targetTime = toTime(scrub);
+      if (!rafScheduled) {
+        rafScheduled = true;
+        requestAnimationFrame(() => {
+          rafScheduled = false;
+          seekAndDraw(targetTime);
+        });
+      }
+    });
+
+    section.addEventListener("pointerup", (e) => {
+      isPointerDown = false;
+      lastAngle = null;
+      try { section.releasePointerCapture(e.pointerId); } catch(_) {}
+    }, { passive: true });
+
+    // Колесо мыши = скраб
+    section.addEventListener("wheel", (e) => {
+      e.preventDefault();
+      const dir = Math.sign(e.deltaY || e.deltaX || 1);
+      scrub = normScrub(scrub + dir * wheelStep);
+      seekAndDraw(toTime(scrub));
+    }, { passive: false });
+
+    let rafScheduled = false;
+
+    // Инициализация
+    video.addEventListener("loadedmetadata", () => {
+      video.pause();
+      scrub = 0;
+      targetTime = 0;
+      seekAndDraw(0);
+    });
+    setTimeout(() => { if (isNaN(video.duration)) video.load(); }, 0);
+
+    function boot() {
+      canvas.style.width  = section.clientWidth + "px";
+      canvas.style.height = section.clientHeight + "px";
+      fitCanvas();
+    }
+    window.addEventListener("resize", fitCanvas, { passive: true });
+    requestAnimationFrame(boot);
+
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+  })();
+  </script>
 </body>
 </html>
