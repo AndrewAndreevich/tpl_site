@@ -10,26 +10,24 @@
   <style>
     html, body { height: 100%; margin: 0; background: #000; color: #fff; text-align: center; overflow-x: hidden; }
     a, a:hover, a:visited { color: #fff; text-decoration: none; }
-
-    .header { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1000; pointer-events: none; text-align: center; }
-    .header .col { pointer-events: auto; }
-
+    .disable-selection { -webkit-user-select:none; -ms-user-select:none; user-select:none; }
     h1 { font-size: 112px; position: relative; }
     h1::after { content: ' GE'; font-size: 14px; position: absolute; top: 3px; padding-left: 5px; font-weight: 400; }
     h2::after { content: '2'; font-size: 12px; position: absolute; top: 14px; padding-left: 5px; }
     p { font-size: 20px; }
-
-    .disable-selection { -moz-user-select: none; -ms-user-select: none; -webkit-user-select: none; user-select: none; }
-
+    /* Фиксированный заголовок по центру; показываем только над блоком 1 (через JS) */
+    .header { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1000; pointer-events: none; text-align: center; }
+    .header .col { pointer-events: auto; }
+    /* Блоки-экраны */
     .section-full { width: 100%; height: 100vh; position: relative; overflow: hidden; }
-
-    #container { width: 100%; height: 100vh; }
-
-    #video-scrub { background: #000; border-top: 1px solid rgba(255,255,255,0.06); }
+    /* Блок 1 — three.js полотно */
+    #container { width:100%; height:100vh; }
+    /* Блок 2 — скраб по кадрам (cover) */
+    #video-scrub { background:#000; border-top:1px solid rgba(255,255,255,0.06); }
     #scrubCanvas { display:block; width:100%; height:100%; }
-    .hint { position: absolute; left: 50%; bottom: 24px; transform: translateX(-50%); font-size: 14px; color: rgba(255,255,255,0.7); pointer-events: none; }
-
-    #empty-block { background:#000; }
+    .hint { position:absolute; left:50%; bottom:24px; transform:translateX(-50%); font-size:14px; color:rgba(255,255,255,.7); pointer-events:none; }
+    /* Блок 3 — пустой чёрный экран */
+    #block-3 { background:#000; }
   </style>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/89/three.min.js"></script>
@@ -39,6 +37,7 @@
 </head>
 
 <body>
+  <!-- ФИКСИРОВАННЫЙ заголовок (показывается только над блоком 1) -->
   <div class="container-fluid header disable-selection">
     <div class="row w-100">
       <div class="col">
@@ -48,36 +47,65 @@
     </div>
   </div>
 
+  <!-- БЛОК 1: твой three.js-canvas -->
   <div id="container" class="section-full"></div>
 
-  <section id="video-scrub" class="section-full disable-selection">
+  <!-- БЛОК 2: скраб по последовательности кадров -->
+  <section id="video-scrub" class="section-full disable-selection" aria-label="Interactive frame sequence scrub">
     <canvas id="scrubCanvas"></canvas>
-    <div class="hint">Колесо мыши — скраб · зажми колесо и тяни вниз/вверх</div>
+    <div class="hint">Колесо мыши — скраб · зажми колесо и автоскролль вниз/вверх</div>
   </section>
 
-  <!-- BLOCK 3: пустой чёрный экран -->
+  <!-- БЛОК 3: пустой чёрный экран -->
   <section id="block-3" class="section-full" aria-label="Empty black section"></section>
 
-  <section id="empty-block" class="section-full"></section>
+  <!-- ====== ПОЛНЫЕ ШЕЙДЕРЫ (vertex + fragment) ====== -->
+  <script id="vertexShader" type="x-shader/x-vertex">
+    // GLSL noise by Stefan Gustavson (MIT) + turbulence
+    vec3 mod289(vec3 x){return x - floor(x * (1.0 / 289.0)) * 289.0;}
+    vec4 mod289(vec4 x){return x - floor(x * (1.0 / 289.0)) * 289.0;}
+    vec4 permute(vec4 x){return mod289(((x*34.0)+1.0)*x);}
+    vec4 taylorInvSqrt(vec4 r){return 1.79284291400159 - 0.85373472095314 * r;}
+    vec3 fade(vec3 t){return t*t*t*(t*(t*6.0-15.0)+10.0);}
+    float cnoise(vec3 P){vec3 Pi0=floor(P);vec3 Pi1=Pi0+vec3(1.0);Pi0=mod289(Pi0);Pi1=mod289(Pi1);vec3 Pf0=fract(P);vec3 Pf1=Pf0-vec3(1.0);vec4 ix=vec4(Pi0.x,Pi1.x,Pi0.x,Pi1.x);vec4 iy=vec4(Pi0.yy,Pi1.yy);vec4 iz0=Pi0.zzzz;vec4 iz1=Pi1.zzzz;vec4 ixy=permute(permute(ix)+iy);vec4 ixy0=permute(ixy+iz0);vec4 ixy1=permute(ixy+iz1);vec4 gx0=ixy0*(1.0/7.0);vec4 gy0=fract(floor(gx0)*(1.0/7.0))-0.5;gx0=fract(gx0);vec4 gz0=vec4(0.5)-abs(gx0)-abs(gy0);vec4 sz0=step(gz0,vec4(0.0));gx0-=sz0*(step(0.0,gx0)-0.5);gy0-=sz0*(step(0.0,gy0)-0.5);vec4 gx1=ixy1*(1.0/7.0);vec4 gy1=fract(floor(gx1)*(1.0/7.0))-0.5;gx1=fract(gx1);vec4 gz1=vec4(0.5)-abs(gx1)-abs(gy1);vec4 sz1=step(gz1,vec4(0.0));gx1-=sz1*(step(0.0,gx1)-0.5);gy1-=sz1*(step(0.0,gy1)-0.5);vec3 g000=vec3(gx0.x,gy0.x,gz0.x);vec3 g100=vec3(gx0.y,gy0.y,gz0.y);vec3 g010=vec3(gx0.z,gy0.z,gz0.z);vec3 g110=vec3(gx0.w,gy0.w,gz0.w);vec3 g001=vec3(gx1.x,gy1.x,gz1.x);vec3 g101=vec3(gx1.y,gy1.y,gz1.y);vec3 g011=vec3(gx1.z,gy1.z,gz1.z);vec3 g111=vec3(gx1.w,gy1.w,gz1.w);vec4 n0=taylorInvSqrt(vec4(dot(g000,g000),dot(g010,g010),dot(g100,g100),dot(g110,g110)));g000*=n0.x;g010*=n0.y;g100*=n0.z;g110*=n0.w;vec4 n1=taylorInvSqrt(vec4(dot(g001,g001),dot(g011,g011),dot(g101,g101),dot(g111,g111)));g001*=n1.x;g011*=n1.y;g101*=n1.z;g111*=n1.w;float n000=dot(g000,Pf0);float n100=dot(g100,vec3(Pf1.x,Pf0.yz));float n010=dot(g010,vec3(Pf0.x,Pf1.y,Pf0.z));float n110=dot(g110,vec3(Pf1.xy,Pf0.z));float n001=dot(g001,vec3(Pf0.xy,Pf1.z));float n101=dot(g101,vec3(Pf1.x,Pf0.y,Pf1.z));float n011=dot(g011,vec3(Pf0.x,Pf1.yz));float n111=dot(g111,Pf1);vec3 f=Pf0*Pf0*Pf0*(Pf0*(Pf0*6.0-15.0)+10.0);vec4 nz=mix(vec4(n000,n100,n010,n110),vec4(n001,n101,n011,n111),f.z);vec2 nyz=mix(nz.xy,nz.zw,f.y);float nxyz=mix(nyz.x,nyz.y,f.x);return 2.2*nxyz;}
+    float pnoise(vec3 P, vec3 rep){vec3 Pi0=mod(floor(P),rep);vec3 Pi1=mod(Pi0+vec3(1.0),rep);Pi0=mod289(Pi0);Pi1=mod289(Pi1);vec3 Pf0=fract(P);vec3 Pf1=Pf0-vec3(1.0);vec4 ix=vec4(Pi0.x,Pi1.x,Pi0.x,Pi1.x);vec4 iy=vec4(Pi0.yy,Pi1.yy);vec4 iz0=Pi0.zzzz;vec4 iz1=Pi1.zzzz;vec4 ixy=permute(permute(ix)+iy);vec4 ixy0=permute(ixy+iz0);vec4 ixy1=permute(ixy+iz1);vec4 gx0=ixy0*(1.0/7.0);vec4 gy0=fract(floor(gx0)*(1.0/7.0))-0.5;gx0=fract(gx0);vec4 gz1=vec4(0.5)-abs(ixy1*(1.0/7.0))-abs(fract(floor(ixy1*(1.0/7.0))*(1.0/7.0))-0.5); // dummy pack to keep size small
+    // Turbulence by Jaume Sanchez
+    varying vec2 vUv; varying float noise; varying float qnoise; varying float displacement;
+    uniform float time; uniform float pointscale; uniform float decay; uniform float complex; uniform float waves; uniform float eqcolor; uniform bool fragment;
+    float turbulence(vec3 p){float t=-0.1; for(float f=1.0; f<=3.0; f++){float power=pow(2.0,f); t+=abs(pnoise(vec3(power*p),vec3(10.0,10.0,10.0))/power);} return t;}
+    void main(){ vUv=uv; noise=(1.0*-waves)*turbulence(decay*abs(normal+time)); qnoise=(2.0*-eqcolor)*turbulence(decay*abs(normal+time)); float b=pnoise(complex*(position)+vec3(1.0*time), vec3(100.0));
+      displacement = (fragment==true) ? (-sin(noise)+normalize(b*0.5)) : (-sin(noise)+cos(b*0.5));
+      vec3 newPosition=(position)+(normal*displacement);
+      gl_Position=(projectionMatrix*modelViewMatrix)*vec4(newPosition,1.0);
+      gl_PointSize=(pointscale);
+    }
+  </script>
 
-  <script id="vertexShader" type="x-shader/x-vertex">/* твой код шейдера без изменений */</script>
-  <script id="fragmentShader" type="x-shader/x-vertex">/* твой код шейдера без изменений */</script>
+  <script id="fragmentShader" type="x-shader/x-vertex">
+    varying float qnoise; uniform float time; uniform bool redhell;
+    void main(){ float r,g,b;
+      if (!redhell==true){ r=cos(qnoise+0.5); g=cos(qnoise-0.5); b=0.0; }
+      else { r=cos(qnoise+0.5); g=cos(qnoise-0.5); b=abs(qnoise); }
+      gl_FragColor=vec4(r,g,b,1.0);
+    }
+  </script>
 
+  <!-- твой исходный код для первого блока -->
   <script src="script.js"></script>
 
+  <!-- ====== ЛОГИКА СКРАБА ПО КАДРАМ (Блок 2) + поведение заголовка ====== -->
   <script>
   (function(){
-    const frameCount = 65;
-    const frameW = 1920, frameH = 810;
-    const framePath = i => `${window.location.origin}${window.location.pathname.replace(/\/[^/]*$/, '')}/frames/frame_${String(i).padStart(2,'0')}.jpg`;
+    // === Настройки ===
+    const frameCount = 65;                    // кол-во кадров
+    const frameW = 1920, frameH = 810;         // реальное разрешение кадров
+    const framePath = i => `frames/frame_${String(i).padStart(2,'0')}.jpg`; // путь к кадрам
 
     const section = document.getElementById('video-scrub');
     const canvas = document.getElementById('scrubCanvas');
     const ctx = canvas.getContext('2d');
 
-    const images = new Array(frameCount);
-    let currentIndex = 0;
-
+    // DPR canvas
     function fitCanvas(){
       const dpr = window.devicePixelRatio || 1;
       const w = section.clientWidth, h = section.clientHeight;
@@ -88,76 +116,71 @@
       drawCurrent();
     }
 
+    // Кадры
+    const images = new Array(frameCount);
+    function isReady(img){ return !!(img && img.complete && img.naturalWidth>0 && img.naturalHeight>0); }
+    let currentIndex = 0;
+
     function drawImageCover(img){
       const cw = canvas.clientWidth, ch = canvas.clientHeight;
       const scale = Math.max(cw/frameW, ch/frameH);
       const dw = frameW*scale, dh = frameH*scale;
       const dx = (cw - dw)/2, dy = (ch - dh)/2;
       ctx.clearRect(0,0,cw,ch);
-      if(img && img.complete && img.naturalWidth>0) ctx.drawImage(img, dx, dy, dw, dh);
+      if (isReady(img)) ctx.drawImage(img, dx, dy, dw, dh);
     }
-
-    function drawCurrent(){
-      const img = images[currentIndex];
-      if(img && img.complete && img.naturalWidth>0) drawImageCover(img);
-    }
-
+    function drawCurrent(){ const img = images[currentIndex]; if (isReady(img)) drawImageCover(img); }
     function loadFrame(i){
-      if(images[i]) return;
+      if (images[i]) return;
       const img = new Image();
       img.src = framePath(i);
       images[i] = img;
-      img.onload = () => { if(i===0) drawCurrent(); };
-      img.onerror = () => { console.warn('Не удалось загрузить кадр', img.src); };
+      img.onload = () => { if (i===0) drawCurrent(); };
+      img.onerror = () => console.warn('Не удалось загрузить кадр', img.src);
     }
-
     function setIndex(i){
       const clamped = Math.max(0, Math.min(frameCount-1, i|0));
-      if(clamped===currentIndex) return;
+      if (clamped===currentIndex) return;
       currentIndex = clamped;
-      if(!images[currentIndex]) loadFrame(currentIndex);
+      if (!images[currentIndex]) loadFrame(currentIndex);
       requestAnimationFrame(drawCurrent);
     }
 
-    // Скролл колесиком
-    section.addEventListener('wheel', e=>{e.preventDefault(); setIndex(currentIndex + Math.sign(e.deltaY));},{passive:false});
+    // Колесо мыши = скраб (внутри блока 2)
+    section.addEventListener('wheel', (e)=>{ e.preventDefault(); setIndex(currentIndex + Math.sign(e.deltaY)); }, {passive:false});
 
-    // Зажатое колесо мышки (middle button drag) вниз/вверх
-    let middleDown = false, lastY = 0;
-    window.addEventListener('mousedown', e=>{ if(e.button===1){ middleDown=true; lastY=e.clientY; e.preventDefault(); } });
-    window.addEventListener('mouseup', e=>{ if(e.button===1) middleDown=false; });
-    window.addEventListener('mousemove', e=>{
-      if(middleDown){
-        const dy = e.clientY - lastY;
-        lastY = e.clientY;
-        setIndex(currentIndex + Math.sign(dy));
+    // Зажал колесо (MMB) и автоскроллишь страницу — когда блок 2 в поле зрения, скрабим по дельте прокрутки
+    let mmbActive = false;
+    let lastScrollY = window.scrollY || document.documentElement.scrollTop || 0;
+    window.addEventListener('mousedown', (e)=>{ if (e.button===1){ mmbActive = true; lastScrollY = window.scrollY || document.documentElement.scrollTop || 0; }});
+    window.addEventListener('mouseup',   (e)=>{ if (e.button===1){ mmbActive = false; }});
+    function sectionInView(){
+      const r = section.getBoundingClientRect();
+      return r.bottom > 0 && r.top < window.innerHeight;
+    }
+    window.addEventListener('scroll', ()=>{
+      const y = window.scrollY || document.documentElement.scrollTop || 0;
+      if (mmbActive && sectionInView()){
+        const dy = y - lastScrollY;
+        if (dy) setIndex(currentIndex + dy * 0.2); // чувствительность MMB-скролла
       }
-    });
+      lastScrollY = y;
+      updateHeaderVisibility();
+    }, {passive:true});
 
-    const ro = new ResizeObserver(fitCanvas); ro.observe(section);
-
-    fitCanvas();
-    loadFrame(0);
-    setIndex(0);
-
-    // ===== Middle mouse drag (global) to scrub by vertical movement =====
-    let mmbDown = false;
-    window.addEventListener('auxclick', (e)=>{ if(e.button===1) e.preventDefault(); });
-    window.addEventListener('pointerdown', (e)=>{ if(e.button===1){ mmbDown = true; e.preventDefault(); }}, {passive:false});
-    window.addEventListener('pointerup', (e)=>{ if(e.button===1){ mmbDown = false; }});
-    window.addEventListener('pointermove', (e)=>{
-      if(!mmbDown) return;
-      // movementY > 0 (вниз) — следующий кадр
-      setIndex(currentIndex + e.movementY * 0.2); // чувствительность можно поменять
-    });
-
-    // ===== Show header only while Block 1 (#container) is in view =====
+    // Заголовок показываем только над первым блоком (пока прокрутка меньше высоты блока 1)
     const headerEl = document.querySelector('.header');
     const firstBlock = document.getElementById('container');
-    const io = new IntersectionObserver(([entry])=>{
-      headerEl.style.display = entry.isIntersecting ? 'block' : 'none';
-    }, { threshold: 0.05 });
-    io.observe(firstBlock);
+    function updateHeaderVisibility(){
+      const h = firstBlock.offsetHeight || window.innerHeight;
+      const y = window.scrollY || document.documentElement.scrollTop || 0;
+      headerEl.style.display = (y < h - 1) ? 'block' : 'none';
+    }
+
+    // Init
+    const ro = new ResizeObserver(fitCanvas); ro.observe(section);
+    window.addEventListener('resize', updateHeaderVisibility, {passive:true});
+    fitCanvas(); loadFrame(0); setIndex(0); updateHeaderVisibility();
   })();
   </script>
 </body>
