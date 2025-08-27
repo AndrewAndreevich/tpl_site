@@ -67,9 +67,9 @@
 
   <script>
   (function(){
-    const frameCount = 180;
-    const frameW = 1920, frameH = 800;
-    const framePath = i => `${window.location.origin}${window.location.pathname.replace(/\/[^/]*$/, '')}/frames/frame_${String(i).padStart(4,'0')}.jpg`;
+    const frameCount = 65;
+    const frameW = 1920, frameH = 810;
+    const framePath = i => `${window.location.origin}${window.location.pathname.replace(/\/[^/]*$/, '')}/frames/frame_${String(i).padStart(2,'0')}.jpg`;
 
     const section = document.getElementById('video-scrub');
     const canvas = document.getElementById('scrubCanvas');
